@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #FDF8F0;
+    color: #1e293b;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(249, 168, 212, 0.4);
+    border-radius: 99px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(244, 114, 182, 0.6);
+  }
+
+  ::selection {
+    background: rgba(249, 168, 212, 0.3);
+    color: #0C4A6E;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-md border border-white/80 rounded-3xl shadow-glass;
+  }
+
+  .glass-card-pink {
+    @apply bg-pink-50/80 backdrop-blur-md border border-pink-100/80 rounded-3xl shadow-petal;
+  }
+
+  .glass-sidebar {
+    @apply bg-white/60 backdrop-blur-xl border-r border-white/60;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-r from-pink-400 to-pink-500 text-white font-medium px-5 py-2.5 rounded-2xl
+           shadow-petal hover:shadow-glass-hover hover:from-pink-500 hover:to-pink-600
+           transition-all duration-200 active:scale-95;
+  }
+
+  .btn-ocean {
+    @apply bg-gradient-to-r from-marea-ocean to-marea-mid text-white font-medium px-5 py-2.5 rounded-2xl
+           shadow-glass hover:shadow-glass-hover
+           transition-all duration-200 active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply bg-white/60 border border-pink-100 text-slate-600 font-medium px-5 py-2.5 rounded-2xl
+           hover:bg-pink-50 hover:border-pink-200 transition-all duration-200 active:scale-95;
+  }
+
+  .input-field {
+    @apply w-full bg-white/70 border border-pink-100 rounded-2xl px-4 py-3 text-slate-700
+           placeholder:text-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-300/50
+           focus:border-pink-300 transition-all duration-200;
+  }
+
+  .tag {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .section-title {
+    @apply font-display text-2xl font-semibold text-marea-ocean;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-glass-hover hover:-translate-y-0.5 cursor-pointer;
+  }
+}
+
+@layer utilities {
+  .text-gradient-ocean {
+    @apply bg-gradient-to-r from-marea-ocean to-marea-mid bg-clip-text text-transparent;
+  }
+
+  .text-gradient-pink {
+    @apply bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent;
+  }
+
+  .bg-gradient-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(254,240,246,0.8) 100%);
+  }
+
+  .ocean-text {
+    color: #0C4A6E;
+  }
+}
+
+/* Animaciones personalizadas */
+@keyframes float-particle {
+  0%, 100% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0.6; }
+  25% { transform: translateY(-15px) translateX(5px) rotate(5deg); opacity: 1; }
+  50% { transform: translateY(-8px) translateX(-5px) rotate(-3deg); opacity: 0.8; }
+  75% { transform: translateY(-20px) translateX(3px) rotate(7deg); opacity: 0.9; }
+}
+
+@keyframes swim {
+  0%, 100% { transform: translateX(0) scaleX(1); }
+  48% { transform: translateX(60px) scaleX(1); }
+  50% { transform: translateX(60px) scaleX(-1); }
+  98% { transform: translateX(0) scaleX(-1); }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes wave-slow {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-20px); }
+}
+
+.animate-float-particle {
+  animation: float-particle var(--duration, 6s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.animate-swim {
+  animation: swim 8s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.animate-twinkle {
+  animation: twinkle var(--duration, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.animate-wave-slow {
+  animation: wave-slow 6s ease-in-out infinite;
+}
+
+/* Scrollbar para sidebars */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(249, 168, 212, 0.3) transparent;
+}
+
+/* Focus ring global */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(249, 168, 212, 0.7);
+  outline-offset: 2px;
+}
+
+/* Transición de página */
+.page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
