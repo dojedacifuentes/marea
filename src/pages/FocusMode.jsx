@@ -183,18 +183,18 @@ export default function FocusMode() {
     return () => clearInterval(intervalRef.current)
   }, [running, mode])
 
-  // ── Audio — se dispara cuando cambia running o sound ─────────────
+  // ── Audio — se dispara cuando cambia sound (independiente del timer) ─
   useEffect(() => {
-    if (running && sound === 'rain') {
+    if (sound === 'rain') {
       engine.startRain()
-    } else if (running && sound === 'waves') {
+    } else if (sound === 'waves') {
       engine.startWaves()
     } else {
       engine.stopAll()
     }
-    // Cleanup al desmontar o cambio
+    // Cleanup al desmontar
     return () => engine.stopAll()
-  }, [running, sound])
+  }, [sound])
 
   // ── Cambiar modo ─────────────────────────────────────────────────
   const switchMode = (m) => {
@@ -301,8 +301,8 @@ export default function FocusMode() {
               </button>
             ))}
           </div>
-          {sound !== 'none' && !running && (
-            <p className="text-white/40 text-xs">Presiona Play para activar el sonido</p>
+          {sound !== 'none' && (
+            <p className="text-white/40 text-xs animate-pulse">♪ sonido activo</p>
           )}
         </div>
 

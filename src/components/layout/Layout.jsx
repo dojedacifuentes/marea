@@ -39,14 +39,14 @@ export default function Layout() {
         )}
 
         <main className="flex-1 overflow-y-auto">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="sync">
             <motion.div
               key={location.pathname}
               variants={pageVariants}
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={{ duration: 0.22, ease: 'easeOut' }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
               className="min-h-full"
             >
               <Outlet />
