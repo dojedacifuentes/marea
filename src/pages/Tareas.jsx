@@ -7,7 +7,7 @@ import useAppStore from '../store/useAppStore'
 import Modal from '../components/ui/Modal'
 import Badge from '../components/ui/Badge'
 
-const PRIORIDADES = ['alta', 'media', 'baja']
+const PRIORIDADES = ['urgente', 'alta', 'media', 'baja']
 const CATEGORIAS = ['trabajo', 'magister', 'interrogaciones', 'personal', 'otro']
 
 const catColors = {
@@ -60,9 +60,9 @@ export default function Tareas() {
     if (search && !t.titulo.toLowerCase().includes(search.toLowerCase())) return false
     return true
   }).sort((a, b) => {
-    const p = { alta: 0, media: 1, baja: 2 }
+    const p = { urgente: 0, alta: 1, media: 2, baja: 3 }
     if (a.completada !== b.completada) return a.completada ? 1 : -1
-    return (p[a.prioridad] ?? 1) - (p[b.prioridad] ?? 1)
+    return (p[a.prioridad] ?? 2) - (p[b.prioridad] ?? 2)
   })
 
   const pendientes = tareas.filter(t => !t.completada).length
@@ -131,9 +131,16 @@ export default function Tareas() {
                 key={t.id}
                 layout
                 initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
+                animate={t.prioridad === 'urgente' && !t.completada
+                  ? { opacity: 1, x: 0, boxShadow: ['0 0 0 0 rgba(239,68,68,0.0)', '0 0 12px 2px rgba(239,68,68,0.18)', '0 0 0 0 rgba(239,68,68,0.0)'] }
+                  : { opacity: 1, x: 0 }
+                }
+                transition={t.prioridad === 'urgente' && !t.completada
+                  ? { repeat: Infinity, duration: 2.4, ease: 'easeInOut' }
+                  : {}
+                }
                 exit={{ opacity: 0, x: 12, height: 0 }}
-                className={`glass-card p-4 flex items-start gap-3 group transition-all ${t.completada ? 'opacity-60' : ''}`}
+                className={`glass-card p-4 flex items-start gap-3 group transition-all ${t.completada ? 'opacity-60' : ''} ${t.prioridad === 'urgente' && !t.completada ? 'border-red-200 bg-red-50/40' : ''}`}
               >
                 <button onClick={() => toggle(t.id, t.completada)} className="mt-0.5 flex-shrink-0 text-pink-400 hover:text-pink-500 transition-colors">
                   {t.completada
@@ -153,7 +160,16 @@ export default function Tareas() {
                     <span className={`text-xs px-2 py-0.5 rounded-lg border ${catColors[t.categoria] || catColors.otro} capitalize`}>
                       {t.categoria}
                     </span>
-                    {t.prioridad === 'alta' && <span className="text-xs text-red-500 font-semibold">↑ Alta</span>}
+                    {t.prioridad === 'urgente' && !t.completada && (
+                      <motion.span
+                        animate={{ scale: [1, 1.08, 1] }}
+                        transition={{ repeat: Infinity, duration: 1.6 }}
+                        className="text-xs bg-red-500 text-white font-bold px-2 py-0.5 rounded-lg flex items-center gap-1"
+                      >
+                        🔴 Urgente
+                      </motion.span>
+                    )}
+                    {t.prioridad === 'alta' && !t.completada && <span className="text-xs text-red-500 font-semibold">↑ Alta</span>}
                     {fecha && <span className={`text-xs ${fecha.cls}`}>{fecha.label}</span>}
                   </div>
                 </div>

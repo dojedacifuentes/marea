@@ -5,6 +5,7 @@ import { CheckSquare, Users, BookOpen, GraduationCap, Zap, TrendingUp, Clock } f
 import useAppStore from '../store/useAppStore'
 import OceanMood from '../components/ui/OceanMood'
 import Badge from '../components/ui/Badge'
+import RemindersWidget from '../components/ui/RemindersWidget'
 import { useNavigate } from 'react-router-dom'
 
 const greetings = [
@@ -100,6 +101,9 @@ export default function Dashboard() {
             : `Tienes ${tareasHoy.length} tarea${tareasHoy.length > 1 ? 's' : ''} para hoy. ¡Tú puedes!`}
         </p>
       </motion.div>
+
+      {/* Reminders full widget */}
+      <RemindersWidget className="mb-6" />
 
       <motion.div variants={container} initial="hidden" animate="show" className="grid gap-6">
 
