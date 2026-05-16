@@ -1,9 +1,10 @@
+import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, GraduationCap, CheckSquare,
   BookOpen, StickyNote, Brain, Timer, Settings, Star,
-  ChevronLeft, ChevronRight, Waves,
+  ChevronLeft, ChevronRight, Waves, X,
 } from 'lucide-react'
 import useAppStore from '../../store/useAppStore'
 
@@ -20,17 +21,38 @@ const navItems = [
   { to: '/configuracion', icon: Settings, label: 'Configuración' },
 ]
 
-export default function Sidebar() {
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  )
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isMobile
+}
+
+export default function Sidebar({ mobileOpen = false, onClose }) {
   const { config, setConfig } = useAppStore()
   const collapsed = config.sidebarCollapsed
   const location = useLocation()
+  const isMobile = useIsMobile()
 
   const toggle = () => setConfig({ sidebarCollapsed: !collapsed })
 
+  // Cerrar drawer al navegar en mobile
+  useEffect(() => {
+    if (isMobile) onClose?.()
+  }, [location.pathname]) // eslint-disable-line
+
+  const sidebarWidth = isMobile ? 260 : collapsed ? 72 : 232
+  const sidebarX = isMobile ? (mobileOpen ? 0 : -280) : 0
+
   return (
     <motion.aside
-      className="glass-sidebar relative flex flex-col h-full select-none z-20"
-      animate={{ width: collapsed ? 72 : 232 }}
+      className="glass-sidebar fixed md:static inset-y-0 left-0 h-screen md:h-full flex flex-col select-none z-50"
+      animate={{ width: sidebarWidth, x: sidebarX }}
       transition={{ type: 'spring', stiffness: 350, damping: 30 }}
     >
       {/* Header */}
@@ -42,18 +64,29 @@ export default function Sidebar() {
           <Waves size={18} className="text-white" />
         </motion.div>
         <AnimatePresence>
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <motion.div
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
               transition={{ duration: 0.18 }}
+              className="flex-1 min-w-0"
             >
               <p className="font-display text-lg font-semibold text-marea-ocean leading-none">Marea</p>
               <p className="text-[10px] text-pink-400 font-medium tracking-wide mt-0.5">workspace personal</p>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Botón cerrar — solo mobile */}
+        {isMobile && (
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 p-1.5 rounded-xl hover:bg-pink-50 text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -63,7 +96,7 @@ export default function Sidebar() {
           return (
             <NavLink key={to} to={to}>
               <motion.div
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-150 group
+                className={`relative flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-150 group
                   ${isActive
                     ? 'bg-gradient-to-r from-pink-100 to-pink-50 text-pink-600 shadow-sm border border-pink-200/60'
                     : 'text-slate-500 hover:bg-pink-50/60 hover:text-slate-700'
@@ -76,7 +109,7 @@ export default function Sidebar() {
                   className={`flex-shrink-0 transition-colors ${isActive ? 'text-pink-500' : 'text-slate-400 group-hover:text-slate-600'}`}
                 />
                 <AnimatePresence>
-                  {!collapsed && (
+                  {(!collapsed || isMobile) && (
                     <motion.span
                       initial={{ opacity: 0, x: -4 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -100,18 +133,20 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Collapse toggle */}
-      <button
-        onClick={toggle}
-        className="m-3 p-2 rounded-2xl hover:bg-pink-50 text-slate-400 hover:text-slate-600 transition-all flex items-center justify-center"
-      >
-        {collapsed ? <ChevronRight size={16} /> : (
-          <div className="flex items-center gap-2 w-full">
-            <ChevronLeft size={16} />
-            <span className="text-xs font-medium">Colapsar</span>
-          </div>
-        )}
-      </button>
+      {/* Collapse toggle — solo desktop */}
+      {!isMobile && (
+        <button
+          onClick={toggle}
+          className="m-3 p-2 rounded-2xl hover:bg-pink-50 text-slate-400 hover:text-slate-600 transition-all flex items-center justify-center"
+        >
+          {collapsed ? <ChevronRight size={16} /> : (
+            <div className="flex items-center gap-2 w-full">
+              <ChevronLeft size={16} />
+              <span className="text-xs font-medium">Colapsar</span>
+            </div>
+          )}
+        </button>
+      )}
     </motion.aside>
   )
 }
