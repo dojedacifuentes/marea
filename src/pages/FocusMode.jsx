@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react'
+import { Play, Pause, RotateCcw, SkipForward, ArrowLeft } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import useAppStore from '../store/useAppStore'
 
 const POMODORO = 25 * 60
@@ -150,6 +151,7 @@ function WaveBackground({ mood }) {
 
 export default function FocusMode() {
   const { addFocusSession } = useAppStore()
+  const navigate = useNavigate()
   const [mode, setMode] = useState('focus')
   const [timeLeft, setTimeLeft] = useState(POMODORO)
   const [running, setRunning] = useState(false)
@@ -223,6 +225,14 @@ export default function FocusMode() {
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${bgGradients[mode]} relative overflow-hidden flex flex-col items-center justify-center p-8`}>
+      {/* Botón salir — esquina superior izquierda */}
+      <button
+        onClick={() => { engine.stopAll(); navigate('/') }}
+        className="absolute top-5 left-5 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/60 hover:text-white text-xs font-medium transition-all border border-white/10 hover:border-white/30"
+      >
+        <ArrowLeft size={13} /> Salir
+      </button>
+
       <WaveBackground mood={mode} />
 
       {/* Partículas */}
