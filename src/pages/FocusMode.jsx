@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Pause, RotateCcw, SkipForward, Volume2, VolumeX, Timer, Coffee } from 'lucide-react'
+import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react'
 import useAppStore from '../store/useAppStore'
 
 const POMODORO = 25 * 60
@@ -20,92 +20,109 @@ const FRASES = [
   'La excelencia no es un acto, es un hábito.',
 ]
 
-function useAudioEngine(enabled) {
-  const ctxRef = useRef(null)
-  const nodesRef = useRef([])
+// ── Audio engine imperativo — sin React state ────────────────────────
+class AudioEngine {
+  constructor() {
+    this.ctx = null
+    this.activeNodes = []
+  }
 
-  const getCtx = useCallback(() => {
-    if (!ctxRef.current) {
-      ctxRef.current = new (window.AudioContext || window.webkitAudioContext)()
+  _getCtx() {
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)()
     }
-    return ctxRef.current
-  }, [])
+    if (this.ctx.state === 'suspended') this.ctx.resume()
+    return this.ctx
+  }
 
-  const startRain = useCallback(() => {
-    if (!enabled) return
-    const ctx = getCtx()
-    if (ctx.state === 'suspended') ctx.resume()
+  stopAll() {
+    this.activeNodes.forEach(n => {
+      try { n.stop?.() } catch {}
+      try { n.disconnect?.() } catch {}
+    })
+    this.activeNodes = []
+  }
 
-    const bufferSize = ctx.sampleRate * 2
+  startRain() {
+    this.stopAll()
+    const ctx = this._getCtx()
+
+    const bufferSize = ctx.sampleRate * 3
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
     const data = buffer.getChannelData(0)
     for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1
 
-    const source = ctx.createBufferSource()
-    source.buffer = buffer
-    source.loop = true
+    const src = ctx.createBufferSource()
+    src.buffer = buffer
+    src.loop = true
 
-    const lowpass = ctx.createBiquadFilter()
-    lowpass.type = 'lowpass'
-    lowpass.frequency.value = 600
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 700
 
-    const highpass = ctx.createBiquadFilter()
-    highpass.type = 'highpass'
-    highpass.frequency.value = 200
+    const hp = ctx.createBiquadFilter()
+    hp.type = 'highpass'
+    hp.frequency.value = 180
 
     const gain = ctx.createGain()
-    gain.gain.value = 0.04
+    gain.gain.value = 0.06
 
-    source.connect(lowpass)
-    lowpass.connect(highpass)
-    highpass.connect(gain)
+    src.connect(lp)
+    lp.connect(hp)
+    hp.connect(gain)
     gain.connect(ctx.destination)
-    source.start()
+    src.start()
 
-    nodesRef.current.push(source, gain)
-    return () => { try { source.stop(); gain.disconnect() } catch {} }
-  }, [enabled, getCtx])
+    this.activeNodes = [src, lp, hp, gain]
+  }
 
-  const startWaves = useCallback(() => {
-    if (!enabled) return
-    const ctx = getCtx()
-    if (ctx.state === 'suspended') ctx.resume()
+  startWaves() {
+    this.stopAll()
+    const ctx = this._getCtx()
 
-    const oscillator = ctx.createOscillator()
-    oscillator.type = 'sine'
-    oscillator.frequency.value = 85
+    // Tono base: frecuencia grave de océano
+    const osc = ctx.createOscillator()
+    osc.type = 'sine'
+    osc.frequency.value = 80
 
+    // Segundo tono para riqueza
+    const osc2 = ctx.createOscillator()
+    osc2.type = 'sine'
+    osc2.frequency.value = 120
+
+    // LFO que modula el volumen (vaivén de ola)
     const lfo = ctx.createOscillator()
-    lfo.frequency.value = 0.1
+    lfo.type = 'sine'
+    lfo.frequency.value = 0.12   // 1 ola cada ~8 segundos
 
     const lfoGain = ctx.createGain()
-    lfoGain.gain.value = 25
+    lfoGain.gain.value = 0.025   // profundidad del vaivén
 
-    const gainNode = ctx.createGain()
-    gainNode.gain.value = 0.03
+    const masterGain = ctx.createGain()
+    masterGain.gain.value = 0.04
 
+    // LFO → gain del master (sube y baja el volumen)
     lfo.connect(lfoGain)
-    lfoGain.connect(oscillator.frequency)
-    oscillator.connect(gainNode)
-    gainNode.connect(ctx.destination)
+    lfoGain.connect(masterGain.gain)
+
+    osc.connect(masterGain)
+    osc2.connect(masterGain)
+    masterGain.connect(ctx.destination)
 
     lfo.start()
-    oscillator.start()
+    osc.start()
+    osc2.start()
 
-    nodesRef.current.push(oscillator, lfo)
-    return () => { try { oscillator.stop(); lfo.stop() } catch {} }
-  }, [enabled, getCtx])
-
-  const stopAll = useCallback(() => {
-    nodesRef.current.forEach(n => { try { n.stop?.(); n.disconnect?.() } catch {} })
-    nodesRef.current = []
-  }, [])
-
-  return { startRain, startWaves, stopAll }
+    this.activeNodes = [osc, osc2, lfo, lfoGain, masterGain]
+  }
 }
 
+// Instancia singleton fuera del componente para que no se recree con renders
+const engine = new AudioEngine()
+
+// ────────────────────────────────────────────────────────────────────
+
 function WaveBackground({ mood }) {
-  const waves = [0, 1, 2, 3]
   const colors = {
     focus: 'rgba(12, 74, 110, 0.3)',
     break: 'rgba(249, 168, 212, 0.3)',
@@ -114,11 +131,11 @@ function WaveBackground({ mood }) {
   const color = colors[mood] || colors.focus
 
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      {waves.map(i => (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {[0, 1, 2, 3].map(i => (
         <motion.div
           key={i}
-          className="absolute left-0 right-0 rounded-full opacity-30"
+          className="absolute left-0 right-0 rounded-full opacity-25"
           style={{ bottom: `${-20 + i * 15}%`, height: '40%', backgroundColor: color }}
           animate={{
             translateX: i % 2 === 0 ? [0, -30, 0] : [0, 30, 0],
@@ -133,30 +150,24 @@ function WaveBackground({ mood }) {
 
 export default function FocusMode() {
   const { addFocusSession } = useAppStore()
-  const [mode, setMode] = useState('focus') // focus | break | longbreak
+  const [mode, setMode] = useState('focus')
   const [timeLeft, setTimeLeft] = useState(POMODORO)
   const [running, setRunning] = useState(false)
   const [sessions, setSessions] = useState(0)
-  const [sound, setSound] = useState('rain') // rain | waves | none
-  const [frase, setFrase] = useState(FRASES[0])
+  const [sound, setSound] = useState('none')   // empieza mudo; usuario activa
+  const [frase, setFrase] = useState(() => FRASES[Math.floor(Math.random() * FRASES.length)])
   const [showTask, setShowTask] = useState('')
   const intervalRef = useRef(null)
-  const stopAudioRef = useRef(null)
-  const { startRain, startWaves, stopAll } = useAudioEngine(sound !== 'none')
 
   const totalTime = mode === 'focus' ? POMODORO : mode === 'break' ? SHORT_BREAK : LONG_BREAK
 
-  useEffect(() => {
-    setFrase(FRASES[Math.floor(Math.random() * FRASES.length)])
-  }, [mode])
-
+  // ── Timer ────────────────────────────────────────────────────────
   useEffect(() => {
     if (running) {
       intervalRef.current = setInterval(() => {
         setTimeLeft(t => {
           if (t <= 1) {
             setRunning(false)
-            clearInterval(intervalRef.current)
             if (mode === 'focus') {
               setSessions(s => s + 1)
               addFocusSession({ mode: 'focus', duration: POMODORO, completedAt: new Date().toISOString() })
@@ -172,25 +183,33 @@ export default function FocusMode() {
     return () => clearInterval(intervalRef.current)
   }, [running, mode])
 
+  // ── Audio — se dispara cuando cambia running o sound ─────────────
   useEffect(() => {
-    if (running && sound !== 'none') {
-      if (stopAudioRef.current) { stopAll(); stopAudioRef.current = null }
-      if (sound === 'rain') stopAudioRef.current = startRain()
-      else if (sound === 'waves') stopAudioRef.current = startWaves()
+    if (running && sound === 'rain') {
+      engine.startRain()
+    } else if (running && sound === 'waves') {
+      engine.startWaves()
     } else {
-      stopAll()
-      stopAudioRef.current = null
+      engine.stopAll()
     }
-    return () => { stopAll() }
+    // Cleanup al desmontar o cambio
+    return () => engine.stopAll()
   }, [running, sound])
 
+  // ── Cambiar modo ─────────────────────────────────────────────────
   const switchMode = (m) => {
     setMode(m)
     setTimeLeft(m === 'focus' ? POMODORO : m === 'break' ? SHORT_BREAK : LONG_BREAK)
     setRunning(false)
+    setFrase(FRASES[Math.floor(Math.random() * FRASES.length)])
   }
 
-  const reset = () => { setTimeLeft(totalTime); setRunning(false) }
+  const reset = () => {
+    setTimeLeft(totalTime)
+    setRunning(false)
+  }
+
+  const toggleRun = () => setRunning(r => !r)
 
   const mm = String(Math.floor(timeLeft / 60)).padStart(2, '0')
   const ss = String(timeLeft % 60).padStart(2, '0')
@@ -206,7 +225,7 @@ export default function FocusMode() {
     <div className={`min-h-screen bg-gradient-to-br ${bgGradients[mode]} relative overflow-hidden flex flex-col items-center justify-center p-8`}>
       <WaveBackground mood={mode} />
 
-      {/* Particles */}
+      {/* Partículas */}
       {Array.from({ length: 12 }).map((_, i) => (
         <motion.div
           key={i}
@@ -220,7 +239,8 @@ export default function FocusMode() {
       ))}
 
       <div className="relative z-10 flex flex-col items-center gap-8 max-w-lg w-full">
-        {/* Mode tabs */}
+
+        {/* Tabs de modo */}
         <div className="flex bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-1 gap-1">
           {[['focus', '🎯 Focus'], ['break', '☕ Pausa'], ['longbreak', '🌙 Descanso']].map(([m, l]) => (
             <button key={m} onClick={() => switchMode(m)}
@@ -230,34 +250,36 @@ export default function FocusMode() {
           ))}
         </div>
 
-        {/* Timer */}
+        {/* Timer circular */}
         <div className="relative">
           <svg width={240} height={240} className="-rotate-90">
             <circle cx={120} cy={120} r={108} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={8} />
             <motion.circle
               cx={120} cy={120} r={108}
-              fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth={8}
+              fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={8}
               strokeLinecap="round"
               strokeDasharray={2 * Math.PI * 108}
-              strokeDashoffset={2 * Math.PI * 108 * (1 - progress)}
+              animate={{ strokeDashoffset: 2 * Math.PI * 108 * (1 - progress) }}
               transition={{ duration: 0.5 }}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="font-display text-6xl font-bold text-white tabular-nums">{mm}:{ss}</span>
-            <span className="text-white/60 text-sm mt-1 capitalize">{mode === 'focus' ? 'enfocada' : mode === 'break' ? 'pausa corta' : 'descanso'}</span>
+            <span className="text-white/60 text-sm mt-1">
+              {mode === 'focus' ? 'enfocada' : mode === 'break' ? 'pausa corta' : 'descanso largo'}
+            </span>
             {sessions > 0 && <span className="text-white/40 text-xs mt-1">🍅 {sessions} pomodoros</span>}
           </div>
         </div>
 
-        {/* Controls */}
+        {/* Controles */}
         <div className="flex items-center gap-4">
           <button onClick={reset} className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-colors">
             <RotateCcw size={20} />
           </button>
           <motion.button
             whileTap={{ scale: 0.93 }}
-            onClick={() => setRunning(!running)}
+            onClick={toggleRun}
             className="w-16 h-16 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors border border-white/30 shadow-xl"
           >
             {running ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
@@ -267,17 +289,24 @@ export default function FocusMode() {
           </button>
         </div>
 
-        {/* Sound controls */}
-        <div className="flex gap-2">
-          {[['rain', '🌧 Lluvia'], ['waves', '🌊 Olas'], ['none', '🔕 Silencio']].map(([s, l]) => (
-            <button key={s} onClick={() => setSound(s)}
-              className={`px-4 py-2 rounded-xl text-xs font-medium transition-all ${sound === s ? 'bg-white/25 text-white' : 'text-white/50 hover:text-white hover:bg-white/10'}`}>
-              {l}
-            </button>
-          ))}
+        {/* Sonidos — activar primero para cumplir política de autoplay */}
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-white/40 text-xs">Sonido ambiente</p>
+          <div className="flex gap-2">
+            {[['rain', '🌧 Lluvia'], ['waves', '🌊 Olas'], ['none', '🔕 Silencio']].map(([s, l]) => (
+              <button key={s}
+                onClick={() => setSound(s)}
+                className={`px-4 py-2 rounded-xl text-xs font-medium transition-all ${sound === s ? 'bg-white/25 text-white ring-1 ring-white/40' : 'text-white/50 hover:text-white hover:bg-white/10'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+          {sound !== 'none' && !running && (
+            <p className="text-white/40 text-xs">Presiona Play para activar el sonido</p>
+          )}
         </div>
 
-        {/* Task input */}
+        {/* Tarea actual */}
         <input
           value={showTask}
           onChange={e => setShowTask(e.target.value)}
@@ -285,7 +314,7 @@ export default function FocusMode() {
           className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-3 text-white placeholder:text-white/40 text-sm text-center focus:outline-none focus:border-white/40 transition-colors"
         />
 
-        {/* Frase motivacional */}
+        {/* Frase */}
         <AnimatePresence mode="wait">
           <motion.p
             key={frase}
