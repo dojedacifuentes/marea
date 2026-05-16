@@ -1,15 +1,10 @@
 import { Outlet, useLocation } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
 import FloatingParticles from '../ui/FloatingParticles'
 import RemindersWidget from '../ui/RemindersWidget'
 
-const pageVariants = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -6 },
-}
 
 export default function Layout() {
   const location = useLocation()
@@ -39,19 +34,15 @@ export default function Layout() {
         )}
 
         <main className="flex-1 overflow-y-auto">
-          <AnimatePresence mode="sync">
-            <motion.div
-              key={location.pathname}
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={{ duration: 0.18, ease: 'easeOut' }}
-              className="min-h-full"
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="min-h-full"
+          >
+            <Outlet />
+          </motion.div>
         </main>
       </div>
     </div>
